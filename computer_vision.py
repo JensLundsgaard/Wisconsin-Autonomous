@@ -5,6 +5,8 @@ import scipy.optimize as optimize
 
 # Opening image
 img = cv.imread("red.png")
+
+# img = cv.rotate(img, cv.ROTATE_180)
   
 # OpenCV opens images as BRG 
 # but we want it as RGB and 
@@ -37,12 +39,13 @@ img_thresh_opened = cv.morphologyEx(img_thresh, cv.MORPH_OPEN, kernel)
 # plt.show()
 
 img_thresh_blurred = cv.medianBlur(img_thresh_opened, 5)
-# plt.imshow(img_thresh_blurred)
-# plt.show()
+plt.imshow(img_thresh_blurred)
+plt.show()
 
 
 # Apply the Canny edge detector
-img_edges = cv.Canny(img_thresh_blurred, 0, 255)
+img_edges = cv.Canny(img_thresh_blurred, 70, 255)
+# img_edges = cv.Canny(img_thresh, 0, 255)
 # plt.imshow(img_edges)
 # plt.show()
 
@@ -54,19 +57,19 @@ cv.drawContours(img_contours, contours, -1, (255,255,255), 2)
 # plt.show()
 
 
-# approx_contours = []
+approx_contours = []
 
-# for c in contours:
-#     approx = cv.approxPolyDP(c, 5, closed = True)
-#     approx_contours.append(approx)
-# img_approx_contours = np.zeros_like(img_edges)
-# cv.drawContours(img_approx_contours, approx_contours, -1, (255,255,255), 1)
-# # plt.imshow(img_approx_contours)
-# # plt.show()
+for c in contours:
+    approx = cv.approxPolyDP(c, 10, closed = True)
+    approx_contours.append(approx)
+img_approx_contours = np.zeros_like(img_edges)
+cv.drawContours(img_approx_contours, approx_contours, -1, (255,255,255), 1)
+# plt.imshow(img_approx_contours)
+# plt.show()
 
 all_convex_hulls = []
-# for ac in approx_contours:
-for ac in img_contours:
+for ac in approx_contours:
+# for ac in img_contours:
     all_convex_hulls.append(cv.convexHull(ac))
 
 img_all_convex_hulls = np.zeros_like(img_edges)
@@ -76,7 +79,7 @@ plt.show()
 
 convex_hulls_3to10 = []
 for ch in all_convex_hulls:
-    if 3 <= len(ch) <= 20:
+    if 3 <= len(ch) <= 10:
         convex_hulls_3to10.append(cv.convexHull(ch))
 img_convex_hulls_3to10 = np.zeros_like(img_edges)
 cv.drawContours(img_convex_hulls_3to10, convex_hulls_3to10, -1, (255,255,255), 2)
@@ -90,11 +93,10 @@ print(convex_hulls_3to10[0])
 def convex_hull_pointing_up(ch:np.ndarray) -> bool:
     points_above_center, points_below_center = [], []
     
-    x, y, w, h = cv.boundingRect(ch) 
-    aspect_ratio = w / h
+    _, y, _, h = cv.boundingRect(ch) 
+    
 
-    if aspect_ratio >= 0.8:
-        return False
+    
     
     vertical_center = y + h / 2
 
@@ -109,8 +111,8 @@ def convex_hull_pointing_up(ch:np.ndarray) -> bool:
 
     x_below, _, w_below, _ = cv.boundingRect(np.array(points_below_center))
 
-    return x_above < x_below + w_below and x_above + w_above < x_below + w_below \
-        and x_above > x_below and x_above + w_above > x_below
+    return x_above <= x_below + w_below and x_above + w_above <= x_below + w_below \
+        and x_above >= x_below and x_above + w_above >= x_below
 
 for i in convex_hulls_3to10:
     print(i)
@@ -118,11 +120,15 @@ for i in convex_hulls_3to10:
 
 cones = []
 bounding_rects = []
+non_cone_bounding_rects = []
 for ch in convex_hulls_3to10:
     if convex_hull_pointing_up(ch):
         cones.append(ch)
         rect = cv.boundingRect(ch)
         bounding_rects.append(rect)
+    else:
+        rect = cv.boundingRect(ch)
+        non_cone_bounding_rects.append(rect)
 
 img_cones = np.zeros_like(img_edges)
 cv.drawContours(img_cones, cones, -1, (255,255,255), 2)
@@ -136,6 +142,9 @@ cv.drawContours(img_res, cones, -1, (255,255,255), 2)
 
 for rect in bounding_rects:
     cv.rectangle(img_res, (rect[0], rect[1]), (rect[0]+rect[2], rect[1]+rect[3]), (1, 255, 1), 3)
+
+for rect in non_cone_bounding_rects:
+    cv.rectangle(img_res, (rect[0], rect[1]), (rect[0]+rect[2], rect[1]+rect[3]), (255, 1, 255), 3)
 
 plt.imshow(img_res)
 plt.show()
@@ -160,7 +169,7 @@ print(m)
 print(b)
 
 
-cv.line(img_res, [0, int(b)], [1000, int((1000 * m) + b)], (1,1,255), 5)
+cv.line(img_res, [0, int(b)], [3000, int((3000 * m) + b)], (255,1,1), 5)
 
 plt.imshow(img_res)
 plt.show()
