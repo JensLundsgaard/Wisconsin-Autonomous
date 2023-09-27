@@ -39,8 +39,8 @@ img_thresh_opened = cv.morphologyEx(img_thresh, cv.MORPH_OPEN, kernel)
 # plt.show()
 
 img_thresh_blurred = cv.medianBlur(img_thresh_opened, 5)
-plt.imshow(img_thresh_blurred)
-plt.show()
+# plt.imshow(img_thresh_blurred)
+# plt.show()
 
 
 # Apply the Canny edge detector
@@ -74,8 +74,8 @@ for ac in approx_contours:
 
 img_all_convex_hulls = np.zeros_like(img_edges)
 cv.drawContours(img_all_convex_hulls, all_convex_hulls, -1, (255,255,255), 2)
-plt.imshow(img_all_convex_hulls)
-plt.show()
+# plt.imshow(img_all_convex_hulls)
+# plt.show()
 
 convex_hulls_3to10 = []
 for ch in all_convex_hulls:
@@ -83,8 +83,8 @@ for ch in all_convex_hulls:
         convex_hulls_3to10.append(cv.convexHull(ch))
 img_convex_hulls_3to10 = np.zeros_like(img_edges)
 cv.drawContours(img_convex_hulls_3to10, convex_hulls_3to10, -1, (255,255,255), 2)
-plt.imshow(img_convex_hulls_3to10)
-plt.show()
+# plt.imshow(img_convex_hulls_3to10)
+# plt.show()
 
 print(type(convex_hulls_3to10[0]))
 print(convex_hulls_3to10[0])
@@ -120,22 +120,20 @@ for i in convex_hulls_3to10:
 
 cones = []
 bounding_rects = []
-non_cone_bounding_rects = []
+
 for ch in convex_hulls_3to10:
     if convex_hull_pointing_up(ch):
         cones.append(ch)
         rect = cv.boundingRect(ch)
         bounding_rects.append(rect)
-    else:
-        rect = cv.boundingRect(ch)
-        non_cone_bounding_rects.append(rect)
+    
 
 img_cones = np.zeros_like(img_edges)
 cv.drawContours(img_cones, cones, -1, (255,255,255), 2)
 # cv.drawContours(img_cones, bounding_rects, -1, (1,255,1), 2)
 
-plt.imshow(img_cones)
-plt.show()
+# plt.imshow(img_cones)
+# plt.show()
 
 img_res = img_rgb.copy()
 cv.drawContours(img_res, cones, -1, (255,255,255), 2)
@@ -143,8 +141,8 @@ cv.drawContours(img_res, cones, -1, (255,255,255), 2)
 for rect in bounding_rects:
     cv.rectangle(img_res, (rect[0], rect[1]), (rect[0]+rect[2], rect[1]+rect[3]), (1, 255, 1), 3)
 
-for rect in non_cone_bounding_rects:
-    cv.rectangle(img_res, (rect[0], rect[1]), (rect[0]+rect[2], rect[1]+rect[3]), (255, 1, 255), 3)
+# for rect in non_cone_bounding_rects:
+#     cv.rectangle(img_res, (rect[0], rect[1]), (rect[0]+rect[2], rect[1]+rect[3]), (255, 1, 255), 3)
 
 plt.imshow(img_res)
 plt.show()
@@ -161,15 +159,47 @@ def least_squares(x, y):
     popt, pcov = optimize.curve_fit(func, x, y)
 
     return popt
+
+# def two_lines_least_squares(x, y):
+    
+#     # Create the least squares objective function.
+#     # def func(x_val, a1, b1, a2, b2, m, b):
+#     #     lowest_dist = 1000
+#     #     lowest_index = 0
+#     #     print(list(enumerate(x)))
+#     #     for i, val in enumerate(x):
+#     #         if(abs(x_val - val) < lowest_dist):
+#     #             lowest_dist = abs(x_val - val)
+#     #             lowest_index = i
+        
+#     #     if(m * x_val + b > y[lowest_index]):
+#     #         return a1 * x_val + b1
+#     #     return a2 * x_val + b2
+
+#     def func(x_val, a1, b1, a2, b2):
+#         if((a2 * x_val) + b2 < (a1 * x_val) + b1).all():
+#             return (a2 * x_val) + b2
+#         return (a1 * x_val) + b1
+
     
 
-cone_points = [(rect[0] + rect[2]/2, rect[1] + rect[3]/2) for rect in bounding_rects]
-m, b = least_squares(np.array([i[0] for i in cone_points]), np.array([i[1] for i in cone_points]))
-print(m)
-print(b)
+#     popt, pcov = optimize.curve_fit(func, x, y)
+
+#     return popt
+    
+# cone_points = [(rect[0] + rect[2]/2, rect[1] + rect[3]/2) for rect in bounding_rects]
+# a1, b1 = least_squares(np.array([i[0] for i in cone_points]), np.array([i[1] for i in cone_points]))
+
+cone_points_left = [(rect[0] + rect[2]/2, rect[1] + rect[3]/2) for rect in bounding_rects if rect[0] + rect[2]/2 < img_res.shape[1]/2]
+cone_points_right = [(rect[0] + rect[2]/2, rect[1] + rect[3]/2) for rect in bounding_rects if rect[0] + rect[2]/2 > img_res.shape[1]/2]
+
+a1, b1 = least_squares(np.array([i[0] for i in cone_points_left]), np.array([i[1] for i in cone_points_left]))
+a2, b2 = least_squares(np.array([i[0] for i in cone_points_right]), np.array([i[1] for i in cone_points_right]))
 
 
-cv.line(img_res, [0, int(b)], [3000, int((3000 * m) + b)], (255,1,1), 5)
+cv.line(img_res, [0, int(b1)], [3000, int((3000 * a1) + b1)], (255,1,1), 5)
+cv.line(img_res, [0, int(b2)], [3000, int((3000 * a2) + b2)], (255,1,1), 5)
 
 plt.imshow(img_res)
+plt.savefig("sample answer.png")
 plt.show()
