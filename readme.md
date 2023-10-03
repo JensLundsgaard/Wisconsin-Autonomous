@@ -37,7 +37,7 @@ cv.drawContours(img_contours, contours, -1, (255,255,255), 2)
 
 approx_contours = []
 for c in contours:
-    approx = cv.approxPolyDP(c, 10, closed = True)
+    approx = cv.approxPolyDP(c, 5, closed = True)
     approx_contours.append(approx)
 img_approx_contours = np.zeros_like(img_edges)
 cv.drawContours(img_approx_contours, approx_contours, -1, (255,255,255), 1)
