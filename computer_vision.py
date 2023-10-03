@@ -47,21 +47,20 @@ img_edges = cv.Canny(img_thresh_blurred, 70, 255)
 
 # Gets contours 
 contours, _ = cv.findContours(np.array(img_edges), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-
 img_contours = np.zeros_like(img_edges)
+# Draws contours to a new image
 cv.drawContours(img_contours, contours, -1, (255,255,255), 2)
 
 
-
+# Approximates or rather simplifies contours using the Douglas-Peucker algorithm
 approx_contours = []
-
 for c in contours:
     approx = cv.approxPolyDP(c, 10, closed = True)
     approx_contours.append(approx)
 img_approx_contours = np.zeros_like(img_edges)
 cv.drawContours(img_approx_contours, approx_contours, -1, (255,255,255), 1)
 
-
+# Finds convex hulls of the contours
 all_convex_hulls = []
 for ac in approx_contours:
     all_convex_hulls.append(cv.convexHull(ac))
@@ -69,7 +68,7 @@ for ac in approx_contours:
 img_all_convex_hulls = np.zeros_like(img_edges)
 cv.drawContours(img_all_convex_hulls, all_convex_hulls, -1, (255,255,255), 2)
 
-
+# removes any hulls with more than 10 or less than 3 points
 convex_hulls_3to10 = []
 for ch in all_convex_hulls:
     if 3 <= len(ch) <= 10:
@@ -78,22 +77,20 @@ img_convex_hulls_3to10 = np.zeros_like(img_edges)
 cv.drawContours(img_convex_hulls_3to10, convex_hulls_3to10, -1, (255,255,255), 2)
 
 
-print(type(convex_hulls_3to10[0]))
-print(convex_hulls_3to10[0])
 
 
+# The following is an function that determines whether a hull is pointing up
+# It works by simply finding the middle horizantal line and splitting up the
+# points into top and bottom ones with it. It then simply returns a boolean 
+# that represents whether all of the top points have x-values that are between 
+# the most extreme x-values of the bottom points
 def convex_hull_pointing_up(ch:np.ndarray) -> bool:
     points_above_center, points_below_center = [], []
-    
     _, y, _, h = cv.boundingRect(ch) 
-    
-
-    
-    
     vertical_center = y + h / 2
 
     for point in ch:
-        if point[0][1] < vertical_center: # если координата y точки выше центра, то добавляем эту точку в список точек выше центра
+        if point[0][1] < vertical_center: 
             points_above_center.append(point)
         elif point[0][1] >= vertical_center:
             points_below_center.append(point)
@@ -112,7 +109,7 @@ for i in convex_hulls_3to10:
 
 cones = []
 bounding_rects = []
-
+# Filters out the contours that aren't pointing up
 for ch in convex_hulls_3to10:
     if convex_hull_pointing_up(ch):
         cones.append(ch)
@@ -122,10 +119,7 @@ for ch in convex_hulls_3to10:
 
 img_cones = np.zeros_like(img_edges)
 cv.drawContours(img_cones, cones, -1, (255,255,255), 2)
-# cv.drawContours(img_cones, bounding_rects, -1, (1,255,1), 2)
 
-# plt.imshow(img_cones)
-# plt.show()
 
 img_res = img_rgb.copy()
 cv.drawContours(img_res, cones, -1, (255,255,255), 2)
@@ -135,11 +129,12 @@ for rect in bounding_rects:
 
 # for rect in non_cone_bounding_rects:
 #     cv.rectangle(img_res, (rect[0], rect[1]), (rect[0]+rect[2], rect[1]+rect[3]), (255, 1, 255), 3)
-
+# Draws the contours and rectangles and shows them on top of the original RGB image
 plt.imshow(img_res)
 plt.show()
 
-
+# This function uses least squares to get the parameters for a 
+# best fit line to a given set of points
 def least_squares(x, y):
 
     # Create the least squares objective function.
@@ -154,16 +149,16 @@ def least_squares(x, y):
 
 
 img_out = img_rgb.copy()
+# Gets the points on the left and right sides of the screen
 cone_points_left = [(rect[0] + rect[2]/2, rect[1] + rect[3]/2) for rect in bounding_rects if rect[0] + rect[2]/2 < img_res.shape[1]/2]
 cone_points_right = [(rect[0] + rect[2]/2, rect[1] + rect[3]/2) for rect in bounding_rects if rect[0] + rect[2]/2 > img_res.shape[1]/2]
-
+# Gets best fit lines for these points
 a1, b1 = least_squares(np.array([i[0] for i in cone_points_left]), np.array([i[1] for i in cone_points_left]))
 a2, b2 = least_squares(np.array([i[0] for i in cone_points_right]), np.array([i[1] for i in cone_points_right]))
 
-
+# Draws, displays and saves final output image
 cv.line(img_out, [0, int(b1)], [3000, int((3000 * a1) + b1)], (255,1,1), 5)
 cv.line(img_out, [0, int(b2)], [3000, int((3000 * a2) + b2)], (255,1,1), 5)
-
 plt.imshow(img_out)
-plt.savefig("sample answer.png")
+plt.savefig("answer.png")
 plt.show()
